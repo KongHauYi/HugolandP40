@@ -750,7 +750,7 @@ const useGameState = () => {
     return true;
   }, [gameState, updateGameState]);
 
-  const prestige = useCallback(): boolean => {
+  const prestige = useCallback((): boolean => {
     if (!gameState || gameState.progression.level < 50) return false;
 
     const prestigePoints = Math.floor(gameState.progression.level / 10);
@@ -851,18 +851,7 @@ const useGameState = () => {
               ...armor,
               level: armor.level + 1,
               baseDef: armor.baseDef + 5,
-              upgradeCost: Math.floor(
-              )
-            }
-          }
-        }
-        )
-      }
-    }
-    )
-  }
-  )
-}armor.upgradeCost * 1.5)
+              upgradeCost: Math.floor(armor.upgradeCost * 1.5)
             };
           }
         });
