@@ -7,6 +7,146 @@ import AsyncStorage from '../utils/storage';
 
 const STORAGE_KEY = 'hugoland_game_state';
 
+// Adventure skill definitions
+const adventureSkillDefinitions: Omit<AdventureSkill, 'id'>[] = [
+  {
+    name: 'Risker',
+    description: 'Gain +50% HP but take +25% damage',
+    type: 'risker'
+  },
+  {
+    name: 'Lightning Chain',
+    description: 'Correct answers deal damage to next enemy too',
+    type: 'lightning_chain'
+  },
+  {
+    name: 'Skip Card',
+    description: 'Skip one question and automatically get it right',
+    type: 'skip_card'
+  },
+  {
+    name: 'Metal Shield',
+    description: 'Block the first enemy attack completely',
+    type: 'metal_shield'
+  },
+  {
+    name: 'Truth & Lies',
+    description: 'Remove one wrong answer from multiple choice questions',
+    type: 'truth_lies'
+  },
+  {
+    name: 'Ramp',
+    description: 'Each correct answer increases damage by 10%',
+    type: 'ramp'
+  },
+  {
+    name: 'Dodge',
+    description: '50% chance to avoid enemy attacks',
+    type: 'dodge'
+  },
+  {
+    name: 'Berserker',
+    description: '+100% damage but -50% defense',
+    type: 'berserker'
+  },
+  {
+    name: 'Vampiric',
+    description: 'Heal 25% of damage dealt',
+    type: 'vampiric'
+  },
+  {
+    name: 'Phoenix',
+    description: 'Revive once with 50% HP when defeated',
+    type: 'phoenix'
+  },
+  {
+    name: 'Time Slow',
+    description: '+50% time to answer questions',
+    type: 'time_slow'
+  },
+  {
+    name: 'Critical Strike',
+    description: '25% chance to deal double damage',
+    type: 'critical_strike'
+  },
+  {
+    name: 'Shield Wall',
+    description: 'Reduce all damage taken by 50%',
+    type: 'shield_wall'
+  },
+  {
+    name: 'Poison Blade',
+    description: 'Attacks poison enemies for 3 turns',
+    type: 'poison_blade'
+  },
+  {
+    name: 'Arcane Shield',
+    description: 'Immune to damage for first 3 attacks',
+    type: 'arcane_shield'
+  },
+  {
+    name: 'Battle Frenzy',
+    description: 'Attack speed increases with each correct answer',
+    type: 'battle_frenzy'
+  },
+  {
+    name: 'Elemental Mastery',
+    description: 'Deal bonus damage based on question category',
+    type: 'elemental_mastery'
+  },
+  {
+    name: 'Shadow Step',
+    description: 'First wrong answer doesn\'t count',
+    type: 'shadow_step'
+  },
+  {
+    name: 'Healing Aura',
+    description: 'Regenerate 10% HP each turn',
+    type: 'healing_aura'
+  },
+  {
+    name: 'Double Strike',
+    description: 'Each attack hits twice',
+    type: 'double_strike'
+  },
+  {
+    name: 'Mana Shield',
+    description: 'Convert 50% damage to mana cost',
+    type: 'mana_shield'
+  },
+  {
+    name: 'Berserk Rage',
+    description: 'Damage increases as HP decreases',
+    type: 'berserk_rage'
+  },
+  {
+    name: 'Divine Protection',
+    description: 'Cannot die for 5 turns',
+    type: 'divine_protection'
+  },
+  {
+    name: 'Storm Call',
+    description: 'Lightning strikes random enemies',
+    type: 'storm_call'
+  },
+  {
+    name: 'Blood Pact',
+    description: 'Sacrifice HP for massive damage',
+    type: 'blood_pact'
+  }
+];
+
+const generateYojefMarketItems = (): RelicItem[] => {
+  const items: RelicItem[] = [];
+  const itemCount = 3 + Math.floor(Math.random() * 3); // 3-5 items
+  
+  for (let i = 0; i < itemCount; i++) {
+    items.push(generateRelicItem());
+  }
+  
+  return items;
+};
+
 const createInitialGameState = (): GameState => ({
   coins: 500,
   gems: 50,
@@ -92,7 +232,7 @@ const createInitialGameState = (): GameState => ({
     totalShinyGemsMined: 0
   },
   yojefMarket: {
-    items: [],
+    items: generateYojefMarketItems(),
     lastRefresh: new Date(),
     nextRefresh: new Date(Date.now() + 5 * 60 * 1000) // 5 minutes from now
   },
@@ -223,6 +363,12 @@ const useGameState = () => {
           const parsedState = JSON.parse(savedState);
           // Ensure all required properties exist
           const completeState = { ...createInitialGameState(), ...parsedState };
+          
+          // Initialize Yojef Market if empty
+          if (!completeState.yojefMarket.items || completeState.yojefMarket.items.length === 0) {
+            completeState.yojefMarket.items = generateYojefMarketItems();
+          }
+          
           setGameState(completeState);
         } else {
           setGameState(createInitialGameState());
@@ -237,6 +383,29 @@ const useGameState = () => {
 
     loadGameState();
   }, []);
+
+  // Auto-refresh Yojef Market every 5 minutes
+  useEffect(() => {
+    if (!gameState) return;
+
+    const checkMarketRefresh = () => {
+      const now = new Date();
+      if (now >= new Date(gameState.yojefMarket.nextRefresh)) {
+        updateGameState(state => ({
+          ...state,
+          yojefMarket: {
+            ...state.yojefMarket,
+            items: generateYojefMarketItems(),
+            lastRefresh: now,
+            nextRefresh: new Date(now.getTime() + 5 * 60 * 1000)
+          }
+        }));
+      }
+    };
+
+    const interval = setInterval(checkMarketRefresh, 30000); // Check every 30 seconds
+    return () => clearInterval(interval);
+  }, [gameState]);
 
   // Save game state to storage
   const saveGameState = useCallback(async (state: GameState) => {
@@ -259,6 +428,15 @@ const useGameState = () => {
       if (!prevState) return null;
       return updater(prevState);
     });
+  }, []);
+
+  // Generate random adventure skills for selection
+  const generateAdventureSkills = useCallback((): AdventureSkill[] => {
+    const shuffled = [...adventureSkillDefinitions].sort(() => 0.5 - Math.random());
+    return shuffled.slice(0, 3).map((skill, index) => ({
+      ...skill,
+      id: `skill_${Date.now()}_${index}`
+    }));
   }, []);
 
   // Game actions
@@ -437,14 +615,90 @@ const useGameState = () => {
   const startCombat = useCallback(() => {
     if (!gameState) return;
 
+    // Show adventure skill selection modal (30% chance)
+    if (Math.random() < 0.3) {
+      const availableSkills = generateAdventureSkills();
+      updateGameState(state => ({
+        ...state,
+        adventureSkills: {
+          ...state.adventureSkills,
+          availableSkills,
+          showSelectionModal: true,
+          selectedSkill: null,
+          skillEffects: {
+            skipCardUsed: false,
+            metalShieldUsed: false,
+            dodgeUsed: false,
+            truthLiesActive: false,
+            lightningChainActive: false,
+            rampActive: false,
+            berserkerActive: false,
+            vampiricActive: false,
+            phoenixUsed: false,
+            timeSlowActive: false,
+            criticalStrikeActive: false,
+            shieldWallActive: false,
+            poisonBladeActive: false,
+            arcaneShieldActive: false,
+            battleFrenzyActive: false,
+            elementalMasteryActive: false,
+            shadowStepUsed: false,
+            healingAuraActive: false,
+            doubleStrikeActive: false,
+            manaShieldActive: false,
+            berserkRageActive: false,
+            divineProtectionUsed: false,
+            stormCallActive: false,
+            bloodPactActive: false,
+            frostArmorActive: false,
+            fireballActive: false
+          }
+        }
+      }));
+      return;
+    }
+
+    // Start combat normally
     const enemy = generateEnemy(gameState.zone);
     updateGameState(state => ({
       ...state,
       currentEnemy: enemy,
       inCombat: true,
-      combatLog: [`You encounter a ${enemy.name} in Zone ${enemy.zone}!`]
+      combatLog: [`You encounter a ${enemy.name} in Zone ${enemy.zone}!`],
+      adventureSkills: {
+        ...state.adventureSkills,
+        selectedSkill: null,
+        skillEffects: {
+          skipCardUsed: false,
+          metalShieldUsed: false,
+          dodgeUsed: false,
+          truthLiesActive: false,
+          lightningChainActive: false,
+          rampActive: false,
+          berserkerActive: false,
+          vampiricActive: false,
+          phoenixUsed: false,
+          timeSlowActive: false,
+          criticalStrikeActive: false,
+          shieldWallActive: false,
+          poisonBladeActive: false,
+          arcaneShieldActive: false,
+          battleFrenzyActive: false,
+          elementalMasteryActive: false,
+          shadowStepUsed: false,
+          healingAuraActive: false,
+          doubleStrikeActive: false,
+          manaShieldActive: false,
+          berserkRageActive: false,
+          divineProtectionUsed: false,
+          stormCallActive: false,
+          bloodPactActive: false,
+          frostArmorActive: false,
+          fireballActive: false
+        }
+      }
     }));
-  }, [gameState, updateGameState]);
+  }, [gameState, updateGameState, generateAdventureSkills]);
 
   const attack = useCallback((hit: boolean, category?: string) => {
     if (!gameState || !gameState.currentEnemy) return;
@@ -508,6 +762,14 @@ const useGameState = () => {
           // Check for premium unlock
           if (newState.zone >= 50) {
             newState.isPremium = true;
+          }
+
+          // Check for Hugoland Fragments (every 5 zones)
+          if (newState.zone % 5 === 0 && newState.zone > newState.merchant.lastFragmentZone) {
+            newState.merchant.hugollandFragments += 1;
+            newState.merchant.totalFragmentsEarned += 1;
+            newState.merchant.lastFragmentZone = newState.zone;
+            log.push(`🧩 You found a Hugoland Fragment!`);
           }
         }
       } else {
@@ -982,25 +1244,37 @@ const useGameState = () => {
   }, [gameState, updateGameState]);
 
   const selectAdventureSkill = useCallback((skill: AdventureSkill) => {
-    updateGameState(state => ({
-      ...state,
-      adventureSkills: {
-        ...state.adventureSkills,
-        selectedSkill: skill,
-        showSelectionModal: false
-      }
-    }));
+    updateGameState(state => {
+      const enemy = generateEnemy(state.zone);
+      return {
+        ...state,
+        adventureSkills: {
+          ...state.adventureSkills,
+          selectedSkill: skill,
+          showSelectionModal: false
+        },
+        currentEnemy: enemy,
+        inCombat: true,
+        combatLog: [`You encounter a ${enemy.name} in Zone ${enemy.zone}!`]
+      };
+    });
   }, [updateGameState]);
 
   const skipAdventureSkills = useCallback(() => {
-    updateGameState(state => ({
-      ...state,
-      adventureSkills: {
-        ...state.adventureSkills,
-        showSelectionModal: false,
-        selectedSkill: null
-      }
-    }));
+    updateGameState(state => {
+      const enemy = generateEnemy(state.zone);
+      return {
+        ...state,
+        adventureSkills: {
+          ...state.adventureSkills,
+          showSelectionModal: false,
+          selectedSkill: null
+        },
+        currentEnemy: enemy,
+        inCombat: true,
+        combatLog: [`You encounter a ${enemy.name} in Zone ${enemy.zone}!`]
+      };
+    });
   }, [updateGameState]);
 
   const useSkipCard = useCallback(() => {
