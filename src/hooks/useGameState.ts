@@ -851,7 +851,18 @@ const useGameState = () => {
               ...armor,
               level: armor.level + 1,
               baseDef: armor.baseDef + 5,
-              upgradeCost: Math.floor(armor.upgradeCost * 1.5)
+              upgradeCost: Math.floor(
+              )
+            }
+          }
+        }
+        )
+      }
+    }
+    )
+  }
+  )
+}armor.upgradeCost * 1.5)
             };
           }
         });
